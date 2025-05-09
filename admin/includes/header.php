@@ -6,8 +6,17 @@
     
     <div class="admin-user">
         <div class="user-info">
-            <div class="user-name"><?php echo isset($_SESSION['admin_username']) ? $_SESSION['admin_username'] : 'ادمین'; ?></div>
-            <div class="user-role">مدیر سایت</div>
+            <div class="user-name"><?php echo isset($_SESSION['admin_fullname']) ? $_SESSION['admin_fullname'] : $_SESSION['admin_username']; ?></div>
+            <div class="user-role">
+                <?php
+                $role_names = [
+                    'owner' => 'مالک سایت',
+                    'admin' => 'مدیر سایت',
+                    'user' => 'کاربر عادی'
+                ];
+                echo $role_names[$_SESSION['admin_role']] ?? 'کاربر';
+                ?>
+            </div>
         </div>
         <div class="user-avatar">
             <i class="fas fa-user"></i>

@@ -5,18 +5,43 @@ require_once '../config/database.php';
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
+    $error = '';
 
-    $stmt = $pdo->prepare("SELECT * FROM admins WHERE username = ?");
+    try {
+        // اول فقط کاربر را پیدا می‌کنیم
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
     $stmt->execute([$username]);
-    $admin = $stmt->fetch();
+        $user = $stmt->fetch();
 
-    if ($admin && $password === 'admin123') { // موقتاً برای تست
-        $_SESSION['admin_id'] = $admin['id'];
-        $_SESSION['admin_username'] = $admin['username'];
-        header('Location: index.php');
-        exit;
-    } else {
-        $error = 'نام کاربری یا رمز عبور اشتباه است';
+        if (!$user) {
+            $error = 'کاربری با این نام کاربری یافت نشد';
+        } 
+        // بررسی وضعیت کاربر
+        elseif ($user['status'] !== 'active') {
+            $error = 'حساب کاربری شما غیرفعال است';
+        }
+        // بررسی رمز عبور
+        elseif (!password_verify($password, $user['password'])) {
+            $error = 'رمز عبور اشتباه است';
+        }
+        // اگر همه چیز درست بود
+        else {
+            // بروزرسانی آخرین ورود
+            $stmt = $pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = ?");
+            $stmt->execute([$user['id']]);
+            
+            $_SESSION['admin_id'] = $user['id'];
+            $_SESSION['admin_username'] = $user['username'];
+            $_SESSION['admin_fullname'] = $user['full_name'];
+            $_SESSION['admin_role'] = $user['role'];
+            
+            header('Location: index.php');
+            exit;
+        }
+    } catch (PDOException $e) {
+        // خطای دیتابیس
+        $error = 'خطا در ارتباط با پایگاه داده';
+        error_log("Database Error in login.php: " . $e->getMessage());
     }
 }
 ?>
@@ -37,10 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <h1>ورود به پنل مدیریت</h1>
             </div>
             
-            <?php if (isset($error)): ?>
+            <?php if (isset($error) && !empty($error)): ?>
                 <div class="alert error">
                     <i class="fas fa-exclamation-circle"></i>
-                    <?php echo $error; ?>
+                    <?php echo htmlspecialchars($error); ?>
                 </div>
             <?php endif; ?>
 
@@ -49,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <label for="username">نام کاربری:</label>
                     <div class="input-group">
                         <i class="fas fa-user"></i>
-                        <input type="text" id="username" name="username" required>
+                        <input type="text" id="username" name="username" required value="<?php echo htmlspecialchars($username ?? ''); ?>">
                     </div>
                 </div>
 
